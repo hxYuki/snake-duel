@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use bevy::prelude::*;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -86,6 +88,33 @@ impl Grid {
                 print!("{}", c);
             }
             println!();
+        }
+    }
+}
+
+#[derive(Resource, Debug)]
+pub(crate) struct FoodPlaceTime {
+    many_food_time: Duration,
+    no_food_time: Duration,
+    pub timer: Timer,
+}
+impl FoodPlaceTime {
+    pub fn reset_long(&mut self) {
+        self.timer.set_duration(self.many_food_time);
+        self.timer.reset();
+    }
+    pub fn reset_short(&mut self) {
+        self.timer.set_duration(self.no_food_time);
+        self.timer.reset();
+    }
+}
+
+impl Default for FoodPlaceTime {
+    fn default() -> Self {
+        Self {
+            many_food_time: Duration::from_secs(5),
+            no_food_time: Duration::from_secs(3),
+            timer: Timer::from_seconds(3., TimerMode::Repeating),
         }
     }
 }

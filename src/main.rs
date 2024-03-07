@@ -5,7 +5,7 @@ use bevy_rand::prelude::*;
 use components::{DieTickTimer, PlayerInput, SnakeEntity, SnakeMovement};
 use events::{SnakeDiedEvent, SnakeGrowthEvent, SpawnSnakeEvent};
 use rand::prelude::*;
-use resources::{Cell, Grid};
+use resources::{Cell, FoodPlaceTime, Grid};
 
 mod bundles;
 mod components;
@@ -15,11 +15,7 @@ fn main() {
     App::new()
         .add_plugins((DefaultPlugins, EntropyPlugin::<WyRand>::default()))
         .add_systems(Startup, (setup,).chain())
-        .add_systems(
-            Update,
-            place_food.run_if(on_timer(Duration::from_secs_f32(5.))),
-        )
-        .add_systems(Update, place_snake)
+        .add_systems(Update, (place_snake, place_food))
         .add_event::<SnakeGrowthEvent>()
         .add_event::<SnakeDiedEvent>()
         .add_event::<SpawnSnakeEvent>()
@@ -47,6 +43,7 @@ fn setup(mut commands: Commands, mut spawn_snake: EventWriter<SpawnSnakeEvent>) 
     let mut grid = Grid::new(25, 25);
     grid.build_wall();
     commands.insert_resource(grid);
+    commands.init_resource::<FoodPlaceTime>();
 
     spawn_snake.send(SpawnSnakeEvent {
         position: IVec2::new(10, 10),
@@ -107,7 +104,20 @@ fn place_snake(
     })
 }
 
-fn place_food(mut grid: ResMut<Grid>, mut rand: ResMut<GlobalEntropy<WyRand>>) {
+fn place_food(
+    mut grid: ResMut<Grid>,
+    mut rand: ResMut<GlobalEntropy<WyRand>>,
+    time: Res<Time>,
+    mut place_timer: ResMut<FoodPlaceTime>,
+) {
+    if !place_timer.timer.tick(time.delta()).just_finished() {
+        return;
+    }
+    if grid.grid.iter().any(|cell| matches!(cell, Cell::Food)) {
+        place_timer.reset_long();
+    } else {
+        place_timer.reset_short();
+    }
     let Some(food_pos) = grid
         .grid
         .iter()
@@ -166,6 +176,7 @@ fn snake_eat(
         }
     })
 }
+
 fn snake_blocked(
     mut snakes: Query<(Entity, &SnakeMovement, &mut DieTickTimer)>,
     time: Res<Time>,
